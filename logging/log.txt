@@ -1,0 +1,7 @@
+INFO:__main__:Process test_script.py with pid 6535 started
+INFO:__main__:Process test_script.py with pid 6879 started
+INFO:__main__:Process test_script.py with pid 7038 started
+INFO:__main__:Process test_script.py with pid 7075 started
+INFO:__main__:Process test_script.py with pid 7199 started
+INFO:__main__:Process test_script.py with pid 7317 started
+INFO:__main__:Process test_script.py with pid 7513 started
