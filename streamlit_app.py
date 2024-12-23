@@ -11,7 +11,11 @@ from get_resources_info.get_process_info import GetProcessInfo
 
 class StreamlitApp():
     def __init__(self, pid=None):
-        self.pid = pid
+        if pid != "None":
+            self.pid = int(pid)
+        else:
+            self.pid = pid
+
         self.get_cpu_info = GetCPUInfo()
         self.get_memory_info = GetMemoryInfo()
         self.get_storage_info = GetStorageInfo()
@@ -128,7 +132,7 @@ class StreamlitApp():
                 st.subheader("Total CPU Stat")
                 st.table(total_cpu)
 
-            if self.pid:
+            if self.pid != "None":
                 if current_time >= interval_start_time + interval_duration:
                     interval_start_time = datetime.now()
                     time_range = pd.date_range(
@@ -188,7 +192,7 @@ class StreamlitApp():
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        pid = int(sys.argv[1])
+        pid = sys.argv[1]
         streamlit_app = StreamlitApp(pid)
     else:
         streamlit_app = StreamlitApp()

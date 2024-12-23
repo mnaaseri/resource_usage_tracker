@@ -5,3 +5,6 @@ INFO:__main__:Process test_script.py with pid 7075 started
 INFO:__main__:Process test_script.py with pid 7199 started
 INFO:__main__:Process test_script.py with pid 7317 started
 INFO:__main__:Process test_script.py with pid 7513 started
+INFO:__main__:Process test_script.py with pid 39162 started
+INFO:__main__:Process test_script.py with pid 42542 started
+INFO:__main__:Process test_script.py with pid 42854 started
