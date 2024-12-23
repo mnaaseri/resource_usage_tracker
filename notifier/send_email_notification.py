@@ -11,12 +11,7 @@ class EmailSender:
         self.password = password
 
     def send_email(self, subject: str, body: str):
-        """_summary_
-
-        Args:
-            subject (str): Email Subject
-            body (str): Email Body
-        """
+        "Send email using mime text"
         message = MIMEMultipart()
         message["From"] = self.sender_email
         message["To"] = self.receiver_email

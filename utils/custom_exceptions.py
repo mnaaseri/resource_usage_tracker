@@ -20,3 +20,9 @@ class ProcessRunError(CustumError):
     
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+        
+class GetResourceError(CustumError):
+    "Raise Error when can't get resource info."
+    
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

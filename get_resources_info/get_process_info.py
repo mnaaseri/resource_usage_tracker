@@ -5,10 +5,10 @@ from datetime import datetime
 class GetProcessInfo():
     def __init__(self) -> None:
         pass
-         
-    def check_for_children(self, pid):
+     
+    def check_for_children(self, pid: int) -> dict:
         process = psutil.Process(pid)
-        children = process.children(recursive=True)  # Get child processes (recursive=True for all descendants)
+        children = process.children(recursive=True)
         children_info = {}
         if children:          
             for child in children:
@@ -17,8 +17,8 @@ class GetProcessInfo():
             return children_info
         else:
             return None
-            
-    def get_process_info(self, pid):
+        
+    def get_process_info(self, pid: int) -> dict:
 
         process = psutil.Process(pid)
         name = process.name()
@@ -28,7 +28,7 @@ class GetProcessInfo():
         open_files = process.open_files()
         start_time = datetime.fromtimestamp(process.create_time())
         up_time = datetime.now() - start_time
-        
+
         proces_info = {
             "name": name,
             "status": status,
@@ -38,5 +38,5 @@ class GetProcessInfo():
             "start_time": start_time,
             "up_time": up_time.total_seconds()
         }
-        
+
         return proces_info
