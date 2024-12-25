@@ -1,3 +1,4 @@
 streamlit
 psutil
 python-dotenv
+pytest
