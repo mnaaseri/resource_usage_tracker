@@ -13,8 +13,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# get_cpu_info        = GetCPUInfo()
-# get_memory_info     = GetMemoryInfo()
 get_storage_info    = GetStorageInfo()
 
 sender_email    = os.getenv("SENDER_EMAIL")
@@ -42,30 +40,34 @@ class NotifierApp:
         self.cpu_info = cpu_info or GetCPUInfo()
 
         
+    def send_alert(self, subject, body, usage_type):
+        self.email_sender.send_email(subject=subject, body=body)
+        logger.info("An alert message had been sent to %s due to %s usage", receiver_email, usage_type)
+
     def total_resource_usage(self):
         try:
             total_memory_usage = self.memory_info.get_total_memory_usage()
             total_cpu_usage = self.cpu_info.get_total_cpu_usage()
 
             if total_memory_usage["memory_percent"] > float(total_memory_threshold):
-                self.email_sender.send_email(
+                self.send_alert(
                     subject="Memory Usage Alert",
                     body=f"""
-                    Your total memory usage is {total_memory_usage["memory_percent"]},
-                    which is more that your specified threshold.
-                    """
-                    )
-                logger.info("An alert message had been sent to %s due to total memory usage", {receiver_email})
+                    Your total memory usage is {total_memory_usage['memory_percent']},
+                    which is more than your specified threshold.
+                    """,
+                    usage_type="total memory"
+                )
 
             if total_cpu_usage["total_cpu_usage"] > float(total_cpu_threshold):
-                self.email_sender.send_email(
+                self.send_alert(
                     subject="CPU Usage Alert",
                     body=f"""
-                    Your total cpu usage is {total_cpu_usage},
-                    which is more that your specified threshold.
-                    """
-                    )
-                logger.info("An alert message had been sent to %s due to total cpu usage", {receiver_email})
+                    Your total CPU usage is {total_cpu_usage["total_cpu_usage"]},
+                    which is more than your specified threshold.
+                    """,
+                    usage_type="total CPU"
+                )
         except GetResourceError as e:
             logger.error("Error in Getting Resource usage: %s", e)
 
@@ -73,24 +75,19 @@ class NotifierApp:
         try:
             process_memory_usage = self.memory_info.get_process_memory_usage(pid)
             process_cpu_usage = self.cpu_info.get_process_cpu_usage(pid)
-            
+
             if process_cpu_usage["process_cpu_usage"] > float(process_cpu_threshold):
-                self.email_sender.send_email(
+                self.send_alert(
                     subject="Process CPU Usage Alert",
-                    body=f"""
-                    Your process cpu usage is {process_cpu_usage},
-                    which is more that your specified threshold."""
-                    )
-                logger.info("An alert message had been sent to %s due to process cpu usage", {receiver_email})
-                
+                    body=f"Your process CPU usage is {process_cpu_usage}, which is more than your specified threshold.",
+                    usage_type="process CPU"
+                )
 
             if process_memory_usage["process_memory_usage"] > float(process_memory_threshold):
-                self.email_sender.send_email(
+                self.send_alert(
                     subject="Process Memory Usage Alert",
-                    body=f"""
-                    Your process memory usage is {process_memory_usage},
-                    which is more that your specified threshold."""
-                    )
-                logger.info("An alert message had been sent to %s due to process memory usage", {receiver_email})
+                    body=f"Your process memory usage is {process_memory_usage}, which is more than your specified threshold.",
+                    usage_type="process memory"
+                )
         except GetResourceError as e:
             logger.error("Error in Getting Resource usage: %s", e)

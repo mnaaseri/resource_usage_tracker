@@ -3,7 +3,7 @@ import subprocess
 import logging
 import time
 from configparser import ConfigParser
-from apps.notifier_app import NotifierApp
+from notifier_app import NotifierApp
 from utils.custom_exceptions import(StreamlitRunError,
                                     NotifierRunError,
                                     ProcessRunError)
