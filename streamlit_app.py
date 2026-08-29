@@ -64,7 +64,6 @@ def _update_chart_point(state_prefix: str, current_time: datetime, memory_value,
 
 class StreamlitApp:
     def __init__(self, pid=None):
-        self.get_cpu_info = GetCPUInfo()
         self.get_memory_info = GetMemoryInfo()
         self.get_storage_info = GetStorageInfo()
         self.get_process_info = GetProcessInfo()
@@ -72,6 +71,10 @@ class StreamlitApp:
 
         if "tracked_pid" not in st.session_state:
             st.session_state.tracked_pid = _normalize_pid(pid)
+        if "psutil_process_cache" not in st.session_state:
+            st.session_state.psutil_process_cache = {}
+
+        self.get_cpu_info = GetCPUInfo(st.session_state.psutil_process_cache)
 
     def _get_kill_thresholds(self):
         memory_kill_threshold = float("inf")
@@ -85,31 +88,52 @@ class StreamlitApp:
 
         return memory_kill_threshold, cpu_kill_threshold
 
-    def _check_and_kill_process(self, pid: int, memory_kill_threshold: float, cpu_kill_threshold: float) -> bool:
-        try:
-            memory_usage = self.get_memory_info.get_process_memory_usage(pid)
-            cpu_usage = self.get_cpu_info.get_process_cpu_usage(pid)
+    def _fetch_process_usage(self, pid: int) -> tuple[dict, dict] | None:
+        memory_usage = self.get_memory_info.get_process_memory_usage(pid)
+        cpu_usage = self.get_cpu_info.get_process_cpu_usage(pid)
 
-            if not memory_usage or not cpu_usage:
-                logger.warning("Process %s not found or stopped.", pid)
-                st.session_state.tracked_pid = None
-                return False
+        if not memory_usage or not cpu_usage:
+            return None
 
-            if (
-                memory_usage["process_memory_usage"] > memory_kill_threshold
-                or cpu_usage["process_cpu_usage"] > cpu_kill_threshold
-            ):
-                self.process_manager.kill_process(pid)
-                st.session_state.tracked_pid = None
-                st.session_state.process_killed_msg = True
-                logger.info("Process %s terminated after exceeding thresholds.", pid)
-                return False
+        return memory_usage, cpu_usage
 
-            return True
-        except GetResourceError as e:
-            st.error(f"Error fetching resources for PID {pid}: {e}")
+    def _check_and_kill_process(
+        self,
+        pid: int,
+        memory_usage: dict,
+        cpu_usage: dict,
+        memory_kill_threshold: float,
+        cpu_kill_threshold: float,
+    ) -> bool:
+        if (
+            memory_usage["process_memory_usage"] > memory_kill_threshold
+            or cpu_usage["process_cpu_usage"] > cpu_kill_threshold
+        ):
+            self.process_manager.kill_process(pid)
             st.session_state.tracked_pid = None
+            st.session_state.process_killed_msg = True
+            logger.info("Process %s terminated after exceeding thresholds.", pid)
             return False
+
+        return True
+
+    def _build_process_stats(self) -> pd.DataFrame:
+        process_memory_df = st.session_state["process_memory"]
+        process_cpu_df = st.session_state["process_cpu"]
+
+        return pd.DataFrame(
+            {
+                "Metric": ["Max", "Avg"],
+                "Process Memory Usage (MB)": [
+                    process_memory_df["Value"].max(),
+                    process_memory_df["Value"].mean(),
+                ],
+                "Process CPU Usage (%)": [
+                    process_cpu_df["Value"].max(),
+                    process_cpu_df["Value"].mean(),
+                ],
+            }
+        )
 
     def _render_config_tab(self) -> None:
         st.write(
@@ -172,20 +196,9 @@ class StreamlitApp:
         }
 
     def _collect_process_metrics(self, pid: int) -> dict:
-        memory_usage = self.get_memory_info.get_process_memory_usage(pid)
-        cpu_usage = self.get_cpu_info.get_process_cpu_usage(pid)
         process_info = self.get_process_info.get_process_info(pid)
         children_inf = self.get_process_info.check_for_children(pid)
 
-        process_memory_df = st.session_state["process_memory"]
-        process_cpu_df = st.session_state["process_cpu"]
-        process_stats = pd.DataFrame(
-            {
-                "Metric": ["Max", "Avg"],
-                "Process Memory Usage (MB)": [process_memory_df["Value"].max(), process_memory_df["Value"].mean()],
-                "Process CPU Usage (%)": [process_cpu_df["Value"].max(), process_cpu_df["Value"].mean()],
-            }
-        )
         process_info_df = pd.DataFrame(
             {
                 "Process": ["Process", "children"],
@@ -194,9 +207,7 @@ class StreamlitApp:
         )
 
         return {
-            "memory_usage": memory_usage,
-            "cpu_usage": cpu_usage,
-            "process_stats": process_stats,
+            "process_stats": self._build_process_stats(),
             "process_info_df": process_info_df,
         }
 
@@ -239,21 +250,35 @@ class StreamlitApp:
 
         process_metrics = None
         if pid is not None:
-            if memory_kill_threshold != float("inf") or cpu_kill_threshold != float("inf"):
-                if not self._check_and_kill_process(pid, memory_kill_threshold, cpu_kill_threshold):
-                    pid = None
+            try:
+                process_usage = self._fetch_process_usage(pid)
+                if process_usage is None:
+                    logger.warning("Process %s not found or stopped.", pid)
+                    st.session_state.tracked_pid = None
+                else:
+                    memory_usage, cpu_usage = process_usage
 
-            if pid is not None:
-                try:
-                    process_metrics = self._collect_process_metrics(pid)
-                    _update_chart_point(
-                        "process",
-                        current_time,
-                        process_metrics["memory_usage"]["process_memory_usage"],
-                        process_metrics["cpu_usage"]["process_cpu_usage"],
-                    )
-                except GetResourceError as e:
-                    st.error(f"Error fetching process resource usage: {e}")
+                    if memory_kill_threshold != float("inf") or cpu_kill_threshold != float("inf"):
+                        if not self._check_and_kill_process(
+                            pid,
+                            memory_usage,
+                            cpu_usage,
+                            memory_kill_threshold,
+                            cpu_kill_threshold,
+                        ):
+                            pid = None
+
+                    if pid is not None:
+                        _update_chart_point(
+                            "process",
+                            current_time,
+                            memory_usage["process_memory_usage"],
+                            cpu_usage["process_cpu_usage"],
+                        )
+                        process_metrics = self._collect_process_metrics(pid)
+            except GetResourceError as e:
+                st.error(f"Error fetching process resource usage: {e}")
+                st.session_state.tracked_pid = None
 
         with tab1:
             if system_metrics:
