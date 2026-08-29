@@ -1,5 +1,5 @@
 tmp
 __pycache__/
-.env
+.venv
 test_script.py
 logging/log.txt

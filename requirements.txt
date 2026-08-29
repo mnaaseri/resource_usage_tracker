@@ -1,4 +1,6 @@
 streamlit
+streamlit-autorefresh
+pandas
 psutil
 python-dotenv
 pytest
